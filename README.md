@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ # CipherTitan
+# ⚡ CipherTitan
 ### Enterprise RAG Intelligence Solution
 
 <img src="https://readme-typing-svg.demolab.com?font=Orbitron&size=28&pause=1000&color=7F5AF0&center=true&vCenter=true&width=900&lines=Enterprise+RAG+Intelligence+System;Security-First+AI+Architecture;RBAC+Protected+Retrieval+Pipeline;Grounded+%26+Hallucination-Resistant+LLM+Engine" alt="Typing SVG" />
@@ -349,4 +349,3 @@ RAG system capable of intelligent cross-source retrieval while maintaining stric
 ### ⭐ If you liked this project, give it a star.
 
 </div>
-```
