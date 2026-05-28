@@ -15,6 +15,7 @@ class LocalVectorIndex:
 
     @staticmethod
     def calculate_tfidf(documents):
+        """Computes term frequencies and inverse document frequencies for the index."""
         dfs = Counter()
         tfs = []
         doc_ids = list(documents.keys())
@@ -28,6 +29,7 @@ class LocalVectorIndex:
         num_docs = len(documents)
         idfs = {term: math.log((1 + num_docs) / (1 + count)) + 1 for term, count in dfs.items()}
         
+        # Build Vector Embeddings Matrix
         vectors = {}
         for idx, doc_id in enumerate(doc_ids):
             tf = tfs[idx]
@@ -40,6 +42,7 @@ class LocalVectorIndex:
 
     @staticmethod
     def cosine_similarity(v1, v2):
+        """Calculates the dot product over the magnitudes of two sparse vectors."""
         dot_product = sum(v1.get(term, 0.0) * v2.get(term, 0.0) for term in v1 if term in v2)
         mag1 = math.sqrt(sum(val ** 2 for val in v1.values()))
         mag2 = math.sqrt(sum(val ** 2 for val in v2.values()))
@@ -56,35 +59,43 @@ class EnterpriseRAGSystem:
 
     def execute_pipeline(self, user_id, query):
         try:
+            # 1. Identity Gatekeeping & Query Intent Routing
             user_info = self.rbac.get_user_context(user_id)
             target_silo = QueryRouter.route_query(query)
             
             context_summary = ""
             citations = []
 
+            # 2. Storage Vector Space Extraction Path
             if target_silo == "UNSTRUCTURED":
+                # CRITICAL METADATA PRE-FILTERING (RBAC Enforcement)
                 allowed_files = self.rbac.filter_accessible_documents(user_id)
                 if not allowed_files:
                     return {"status": "NO_CONTEXT", "response": "Unauthorized document footprint layer.", "citations": [], "confidence_score": 0.0}
                 
+                # Only pull files into memory that the user is cleared to view
                 raw_docs = self.ingestion.fetch_unstructured_docs(allowed_files)
                 if not raw_docs:
                     return {"status": "NO_CONTEXT", "response": "No accessible resources located.", "citations": [], "confidence_score": 0.0}
                 
+                # Execute True Vector Search Engine calculations
                 doc_vectors, idfs = LocalVectorIndex.calculate_tfidf(raw_docs)
                 
+                # Vectorize the query text matching the corpus vocabulary
                 query_tokens = LocalVectorIndex.tokenize(query)
                 query_tf = Counter(query_tokens)
                 query_vector = {term: count * idfs.get(term, 0.0) for term, count in query_tf.items()}
                 
+                # Compute Similarity Scores Across the Isolated Matrix
                 rankings = []
                 for doc_id, doc_vec in doc_vectors.items():
                     score = LocalVectorIndex.cosine_similarity(query_vector, doc_vec)
-                    if score > 0.01:
+                    if score > 0.01: # Vector similarity threshold gate
                         rankings.append((score, doc_id))
                 
                 rankings.sort(reverse=True, key=lambda x: x[0])
                 
+                # Build context chunk summary from best hit matches
                 if rankings:
                     best_score, best_doc = rankings[0]
                     context_summary = f"\n[{best_doc} (Vector Score: {best_score:.4f})]: {raw_docs[best_doc]}\n"
@@ -107,8 +118,10 @@ class EnterpriseRAGSystem:
             if not context_summary or context_summary == "[]":
                 context_summary = "No records located matching query parameters."
 
+            # 3. Grounded Synthesis Strategy Simulation
             response_text = self._llm_context_synthesis(query, context_summary, user_info["name"])
             
+            # Mathematical Overlap Score calculation
             q_words = set(LocalVectorIndex.tokenize(query))
             ctx_words = set(LocalVectorIndex.tokenize(context_summary))
             confidence = len(q_words.intersection(ctx_words)) / max(len(q_words), 1)
@@ -129,6 +142,7 @@ class EnterpriseRAGSystem:
             return {"status": "SYSTEM_FAULT", "error": str(e), "citations": [], "confidence_score": 0.0}
 
     def _llm_context_synthesis(self, query, context, user_name):
+        """Simulates strict contextual constraints for safe output generation."""
         if "hyperion" in query.lower():
             if "Q3_Project_Hyperion_Specs.txt" in context:
                 return f"Hello {user_name}. Verified vector index details reveal that Project Hyperion runs on a primary-replica distributed cluster using PostgreSQL with vector extensions, processing 50,000 req/sec with AES-256 encryption configurations."
@@ -140,7 +154,12 @@ class EnterpriseRAGSystem:
             
         return f"Processed query with available grounded parameters: {context[:150]}..."
 
+# Verification Pipeline Runs
 if __name__ == "__main__":
     rag = EnterpriseRAGSystem()
+    
     print("\n=== RUN 1: Authorized Engineering Querying Vector Space ===")
     print(json.dumps(rag.execute_pipeline("USR_002", "What database features are used for hyperion specs?"), indent=2))
+
+    print("\n=== RUN 2: Guest Querying the Same Document (Pre-Retrieval Filter Test) ===")
+    print(json.dumps(rag.execute_pipeline("USR_004", "What database features are used for hyperion specs?"), indent=2))
